@@ -1,0 +1,9 @@
+{
+  "name": "burmese-audiobook",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "dependencies": {
+    "@gradio/client": "^1.0.0"
+  }
+}
