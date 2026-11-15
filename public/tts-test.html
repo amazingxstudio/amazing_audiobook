@@ -1,0 +1,98 @@
+<!doctype html>
+<html lang="my">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>မြန်မာ TTS စမ်းသပ်ရန်</title>
+<style>
+  :root {
+    --bg: #f6f7f9; --fg: #1b1f24; --muted: #5b6570;
+    --card: #ffffff; --line: #d5dae0; --accent: #1f5fbf; --err: #b3261e;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #14171a; --fg: #e8eaed; --muted: #9aa4af;
+      --card: #1d2125; --line: #323840; --accent: #7aa7ee; --err: #f2867f;
+    }
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; padding: 16px; background: var(--bg); color: var(--fg);
+    font: 17px/1.7 "Noto Sans Myanmar", "Padauk", system-ui, sans-serif;
+  }
+  main { max-width: 640px; margin: 0 auto; }
+  h1 { font-size: 1.25rem; margin: 0 0 12px; }
+  label { display: block; margin: 14px 0 4px; color: var(--muted); font-size: .9rem; }
+  textarea, input {
+    width: 100%; padding: 10px; border: 1px solid var(--line); border-radius: 8px;
+    background: var(--card); color: var(--fg); font: inherit;
+  }
+  textarea { min-height: 150px; resize: vertical; }
+  button {
+    margin-top: 16px; width: 100%; padding: 12px; border: 0; border-radius: 8px;
+    background: var(--accent); color: #fff; font: inherit; font-weight: 600;
+  }
+  button:disabled { opacity: .6; }
+  :focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; }
+  #status { margin-top: 14px; color: var(--muted); min-height: 1.5em; }
+  #status.error { color: var(--err); white-space: pre-wrap; }
+  audio { width: 100%; margin-top: 12px; }
+  a { color: var(--accent); }
+</style>
+</head>
+<body>
+<main>
+  <h1>မြန်မာစာ အသံထုတ် စမ်းသပ်ခြင်း</h1>
+
+  <label for="text">စာသား</label>
+  <textarea id="text">မင်္ဂလာပါ။ ဒါက မြန်မာဝတ္ထု အသံစာအုပ်အတွက် စမ်းသပ်နေတဲ့ အသံဖြစ်ပါတယ်။</textarea>
+
+  <label for="control">အသံ ညွှန်ကြားချက် (မလိုရင် ဗလာထား)</label>
+  <input id="control" placeholder="ဥပမာ - A calm middle-aged woman, warm storytelling voice">
+
+  <button id="go">အသံထုတ်မယ်</button>
+
+  <div id="status" role="status"></div>
+  <audio id="player" controls hidden></audio>
+  <a id="dl" hidden target="_blank" rel="noopener">အသံဖိုင် ဒေါင်းလုဒ်</a>
+</main>
+
+<script>
+const $ = (id) => document.getElementById(id);
+
+$("go").addEventListener("click", async () => {
+  const text = $("text").value.trim();
+  if (!text) return;
+
+  const btn = $("go"), status = $("status");
+  btn.disabled = true;
+  status.className = "";
+  status.textContent = "အသံထုတ်နေပါတယ်… (စက္ကန့် ၃၀ ကျော် ကြာနိုင်ပါတယ်)";
+  $("player").hidden = true;
+  $("dl").hidden = true;
+
+  try {
+    const r = await fetch("/api/tts", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ text, control: $("control").value.trim() }),
+    });
+    const data = await r.json();
+    if (!r.ok) throw new Error(data.error || "Request failed");
+
+    $("player").src = data.url;
+    $("player").hidden = false;
+    $("dl").href = data.url;
+    $("dl").hidden = false;
+    $("player").play().catch(() => {});
+    status.textContent = "ပြီးပါပြီ။";
+  } catch (e) {
+    status.className = "error";
+    status.textContent = "မအောင်မြင်ပါ: " + e.message;
+  } finally {
+    btn.disabled = false;
+  }
+});
+</script>
+</body>
+</html>
