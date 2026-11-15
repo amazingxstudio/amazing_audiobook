@@ -1,8 +1,11 @@
 {
   "name": "burmese-audiobook",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "private": true,
   "type": "module",
+  "scripts": {
+    "test": "node tests/unit.mjs && node tests/i18n-check.mjs && node tests/api.mjs"
+  },
   "dependencies": {
     "@gradio/client": "^1.0.0"
   }
