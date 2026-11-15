@@ -3,20 +3,27 @@ import { Client } from "@gradio/client";
 // Vercel: allow a longer run for TTS. If your plan rejects 60, lower it.
 export const config = { maxDuration: 60 };
 
-const SPACE = process.env.VOXCPM_SPACE || "openbmb/VoxCPM-Demo";
+const DEFAULT_SPACE = process.env.VOXCPM_SPACE || "openbmb/VoxCPM-Demo";
+const SPACE_RE = /^[\w.-]+\/[\w.-]+$/; // owner/space-name
 
 export default async function handler(req, res) {
   if (req.method !== "POST") {
     return res.status(405).json({ error: "POST only" });
   }
 
-  const { text, control = "", cfg = 2.0 } = req.body || {};
+  // `space` is an optional override sent by the Settings screen; the request contract is otherwise unchanged.
+  const { text, control = "", cfg = 2.0, space } = req.body || {};
+  if (space !== undefined && space !== "" && !SPACE_RE.test(String(space))) {
+    return res.status(400).json({ error: "space must look like owner/space-name" });
+  }
+  const SPACE = space ? String(space) : DEFAULT_SPACE;
   if (!text || !text.trim()) {
     return res.status(400).json({ error: "text is required" });
   }
 
   try {
-    const opts = process.env.HF_TOKEN ? { hf_token: process.env.HF_TOKEN } : {};
+    // Never send the HF token to an overridden Space (it would leak the token to a third party).
+    const opts = process.env.HF_TOKEN && SPACE === DEFAULT_SPACE ? { hf_token: process.env.HF_TOKEN } : {};
     const client = await Client.connect(SPACE, opts);
 
     // Parameters copied from the Space's API docs (/generate, 8 params)
