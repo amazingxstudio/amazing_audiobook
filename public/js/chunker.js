@@ -104,7 +104,7 @@ export function hashStr(str, seed = 0) {
 
 /**
  * Build the ordered chunk list of a chapter.
- * chunk.key = "<bookId>:<hash(text, control, cfg)>" -> same text+voice+cfg is never generated twice,
+ * chunk.key = "<bookId>:<hash(text, control, cfg, voice refId)>" -> same text+voice+cfg is never generated twice,
  * and changing a paragraph's speaker (or the voice's control text) automatically invalidates its audio.
  */
 export function planChapter(book, chapter, { chunkSize, cfg }) {
@@ -115,7 +115,8 @@ export function planChapter(book, chapter, { chunkSize, cfg }) {
     const control = (v.control || '').trim();
     const pieces = chunkParagraph(p.t, chunkSize);
     pieces.forEach((c, ci) => {
-      const hash = hashStr(`${c.text}\u0001${control}\u0001${Number(cfg)}`);
+      // refId changes whenever the voice sample / locked voice changes, so audio from another voice is never reused
+      const hash = hashStr(`${c.text}\u0001${control}\u0001${Number(cfg)}\u0001${v.refId || ''}`);
       out.push({
         idx: out.length, para: pi, text: c.text, speaker: v.id, control, forced: !!c.forced,
         hash, key: `${book.id}:${hash}`,

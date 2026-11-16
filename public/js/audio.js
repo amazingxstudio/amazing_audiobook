@@ -88,7 +88,12 @@ export async function parseWav(blob) {
 }
 
 /** Merge WAV blobs into one WAV. pauseAfter[i] is 'para' | 'sentence' (silence inserted after chunk i). */
-export async function mergeWav(blobs, pauseAfter = []) {
+export function mergeWav(blobs, pauseAfter = []) {
+  return mergeWavParts(blobs, pauseAfter.map((p) => PAUSE_MS[p] ?? 0));
+}
+
+/** Same, with explicit silence in milliseconds after each blob (gapsMs[i] goes between blob i and i+1). */
+export async function mergeWavParts(blobs, gapsMs = []) {
   const infos = [];
   for (let i = 0; i < blobs.length; i++) {
     try { infos.push(await parseWav(blobs[i])); } catch (e) { throw e instanceof AppError ? new AppError(e.key, { n: i + 1 }) : e; }
@@ -106,19 +111,23 @@ export async function mergeWav(blobs, pauseAfter = []) {
     parts.push(b.slice(x.dataOffset, x.dataOffset + x.dataSize)); // lazy slice: does not copy into memory
     total += x.dataSize;
     if (i < blobs.length - 1) {
-      const ms = PAUSE_MS[pauseAfter[i]] ?? 0;
-      const n = Math.round((ms / 1000) * bytesPerSec / f.blockAlign) * f.blockAlign;
+      const n = Math.round(((gapsMs[i] ?? 0) / 1000) * bytesPerSec / f.blockAlign) * f.blockAlign;
       if (n > 0) { parts.push(new Uint8Array(n)); total += n; } // zeros = silence for int PCM and float
     }
   });
-  const fmtLen = f.bytes.length;
+  return { blob: finishWav(f.bytes, parts, total), seconds: total / bytesPerSec, info: f };
+}
+
+/** Build the final WAV blob: header (copying the fmt chunk bytes) + data parts. */
+export function finishWav(fmtBytes, parts, total) {
+  const fmtLen = fmtBytes.length;
   const head = new ArrayBuffer(12 + 8 + fmtLen + (fmtLen % 2) + 8);
   const dv = new DataView(head);
   const w = (o, s) => [...s].forEach((c, k) => dv.setUint8(o + k, c.charCodeAt(0)));
   const riff = head.byteLength - 8 + total;
   if (riff > 0xffffffff) throw new AppError('err_wav_too_big');
   w(0, 'RIFF'); dv.setUint32(4, riff, true); w(8, 'WAVE'); w(12, 'fmt '); dv.setUint32(16, fmtLen, true);
-  new Uint8Array(head, 20, fmtLen).set(f.bytes);
+  new Uint8Array(head, 20, fmtLen).set(fmtBytes);
   const dataHdr = 20 + fmtLen + (fmtLen % 2);
   w(dataHdr, 'data'); dv.setUint32(dataHdr + 4, total, true);
   return new Blob([head, ...parts], { type: 'audio/wav' });
