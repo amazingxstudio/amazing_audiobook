@@ -1,37 +1,33 @@
-# ဖိုင်စာရင်း (Audiobook Step 2)
+# Burmese Audiobook - ဖိုင်စာရင်း
 
-## api/ (Vercel serverless — ဖိုလ်ဒါအမည် အက္ခရာသေးသာ)
-- `api/tts.js` — မူလ endpoint (`POST /api/tts {text, control, cfg}` → `{url}`)။ ပြင်ချက် ၂ ခုသာ: ရွေးချယ်စရာ `space` field ထည့်ထားသည် (Settings ၏ Space override)၊ override Space သို့ HF token မပို့ရန် ကာကွယ်ထားသည်။
-- `api/audio.js` — အသစ်။ ဘရောက်ဇာက Space ၏ အသံလင့်ခ်ကို CORS ကြောင့် တိုက်ရိုက် မယူနိုင်မှသာ သုံးမည့် proxy။ `<owner>-<name>.hf.space` host တစ်ခုတည်းကိုသာ ခွင့်ပြုသည်၊ 4.4 MB ကန့်သတ်။
+## ဘယ်လိုသုံးမလဲ (အတိုချုပ်)
+1. **စာကြည့်တိုက်** → "PDF ထည့်မည်" → PDF ရွေး → အခန်းများ စစ် → သိမ်း။
+2. စာအုပ်ကို ဖွင့်ပြီး **"စာအုပ်တစ်အုပ်လုံး ထုတ်မည်"** ကိုနှိပ်ပါ။
+3. **အသံတူစေရန်** (စာအုပ်ဖွင့်ထားသည့်စာမျက်နှာ၏ "အသံ" အကန့်):
+   - ဘာမှမလုပ်လည်း ရသည် - ပထမအပိုင်း ထုတ်ပြီးသည်နှင့် ထိုအသံကို လော့ခ်ချပြီး နောက်အပိုင်းအားလုံးကို ထိုအသံဖြင့် ထုတ်သည်။
+   - ကြိုက်သောအသံ ရွေးလိုလျှင် **"အသံ စမ်းမည်"** ကို နှိပ်ပြီး ကြိုက်လျှင် **"ဤအသံကို သုံးမည်"**။
+   - ကိုယ့်အသံ clone လုပ်လိုလျှင် **"ကိုယ့်အသံနမူနာဖြင့် ကူးယူမည်"** ကိုဖွင့် → အသံဖိုင်ရွေး (သန့်ရှင်း၊ စက္ကန့် ၅-၂၀) → ထိုအသံထဲက စကားကို အတိအကျ ရိုက်ထည့် → **"သိမ်းပြီး စမ်းမည်"**။ ကူးထားသောအသံကို ချက်ချင်း ကြားရမည်။
+4. **အသံပေါင်း** တက်ဘ်: ဖုန်းထဲက အသံဖိုင်များ (သို့) စာအုပ်ထဲက အခန်းများကို တစ်ဖိုင်တည်း (WAV) ပေါင်းသည်။ အသံအသစ် မထုတ်ပါ။
+
+## api/ (Vercel — ဖိုလ်ဒါအမည် အက္ခရာသေးသာ)
+- `api/tts.js` — `POST {text, control, cfg}` → `{url}` မူလအတိုင်း။ **ထပ်ထည့်ထားသည်**: `ref: {b64, text?}` (clone အသံ)၊ `space` (override)။ Space ၏ `reference_wav_path_input` / `use_prompt_text` / `prompt_text_input` သို့ တကယ်ပို့သည်။
+- `api/audio.js` — CORS ပိတ်ခံရမှသာ သုံးမည့် proxy (hf.space host တစ်ခုတည်း၊ 4.4 MB ကန့်သတ်)။
+- `api/space-info.js` — Settings ၏ "Space နှင့် clone စစ်မည်" အတွက်။
 
 ## public/
-- `index.html` — အပြင်ဘောင် (header၊ MM|EN ခလုတ်၊ အောက်ခြေ မီနူး)။ စာသား hard-code မပါ။
-- `tts-test.html` — မူလ စမ်းသပ်စာမျက်နှာ (မပြောင်းဘဲ ထိန်းထား)။
-- `css/app.css` — အရောင်/အလင်း-အမှောင်၊ မြန်မာစာ line-height၊ wrap စည်းမျဉ်းများ၊ စာရွက်ကြိုးပုံ ခွဲ progress bar။
-
-## public/js/ (module များ)
-- `app.js` — router၊ မီနူး၊ စာသား/ပုံ ရွေးချယ်ခြင်း (long-press) ပိတ်ဆို့မှု။
-- `i18n.js` — `I18N.mm` / `I18N.en` ဘာသာပြန်အဘိဓာန် + ချက်ချင်းပြောင်းသည့် engine။
-- `dom.js`, `ui.js` — DOM ကူညီကိရိယာ၊ error alert၊ confirm dialog၊ chunk progress bar။
-- `errors.js` — ဘာသာပြန်ကီးပါသော error class။
-- `settings.js` — chunk size၊ cfg၊ Space override၊ speed (localStorage)။
-- `store.js` — IndexedDB (စာအုပ်များ + အသံ blob များ)။
-- `pdf.js` — pdf.js (cdnjs 3.11.174) ဖြင့် စာသားထုတ်ခြင်း။
-- `zawgyi.js` — Zawgyi စစ်ဆေးခြင်း + အခြေခံ Zawgyi→Unicode ပြောင်းကိရိယာ။
-- `cleanup.js` — စာမျက်နှာနံပါတ်၊ ခေါင်းစီး/ခြေစီး ဖယ်ခြင်း၊ ကြောင်းတွဲခြင်း။
-- `splitter.js` — အခန်းခေါင်းစဉ် ရှာခြင်း၊ အပိုင်းအစ fallback၊ ပေါင်း/ခွဲ/ဖျက် လုပ်ဆောင်ချက်များ။
-- `chunker.js` — ။ ၊ နှင့် syllable ကိုမဖြတ်သော chunk ခွဲခြင်း၊ chunk key (hash)။
-- `queue.js` — တစ်ခုချင်း queue (pause/resume/cancel) + ၃ ကြိမ် retry/backoff။
-- `generator.js` — အခန်းတစ်ခု၏ အသံထုတ်လုပ်ငန်း (ထုတ်ပြီးသည်ကျော်၊ မအောင်မြင်သည်သာ ပြန်လုပ်)။
-- `audio.js` — အသံလင့်ခ် ဒေါင်းလုဒ် (CORS auto-detect + proxy fallback)၊ WAV ပေါင်းခြင်း။
-- `chapter-audio.js` — အခန်းတစ်ခု WAV ဒေါင်းလုဒ်။
-- `player.js` — audio ၂ ခု အလှည့်ကျ သုံးသော ဆက်တိုက်ဖွင့်စနစ်၊ Media Session။
-- `book-model.js`, `sample.js` — စာအုပ်/အသံပရိုဖိုင် ပုံစံ၊ နမူနာစာအုပ်။
-- `analyzer.js` — နောက်အဆင့် (စကားပြောသူ/စိတ်ခံစားမှု အလိုအလျောက်သိခြင်း) အတွက် hook သာ၊ မလုပ်ရသေး။
-- `views/` — `library.js`, `import.js`, `book.js` (အခန်း/အသံပရိုဖိုင်/အသံထုတ်), `chapter-editor.js`, `player.js`, `settings.js`။
+- `index.html` — floating header (MM|EN)၊ floating bottom nav (စာအုပ်စင်၊ နားထောင်၊ အသံပေါင်း၊ ဆက်တင်)။
+- `tts-test.html` — မူလ စမ်းသပ်စာမျက်နှာ။
+- `css/app.css` — Glassmorphism၊ အလင်း/အမှောင်၊ မြန်မာစာ line-height စည်းမျဉ်းများ။
+- `js/app.js` router + select ပိတ်ဆို့မှု · `i18n.js` MM/EN အဘိဓာန် · `ui.js` panel/inline error · `dom.js`
+- `js/store.js` IndexedDB · `settings.js` · `errors.js`
+- `js/pdf.js` PDF · `zawgyi.js` · `cleanup.js` · `splitter.js` · `chunker.js`
+- `js/generator.js` အသံထုတ် + **voice lock/clone** + စာအုပ်တစ်အုပ်လုံး · `queue.js` retry
+- `js/refaudio.js` clone နမူနာအသံ (16 kHz mono) ပြင်ဆင် · `audio.js` ဒေါင်းလုဒ်/WAV · `merger.js` **အသံဖိုင်ပေါင်း engine**
+- `js/player.js` ဆက်တိုက်ဖွင့်စနစ် · `chapter-audio.js` · `book-model.js` · `sample.js` · `analyzer.js` (နောက်အဆင့် hook)
+- `js/views/` — `library.js` `import.js` `book.js` `voice-box.js` `chapter-editor.js` `player.js` `merge.js` `settings.js` (ဆက်သွယ်ရန် ပါ)
 
 ## tests/
-- `unit.mjs`, `i18n-check.mjs`, `api.mjs` — `npm test` ဖြင့် run နိုင်သည်။
+`npm test` — unit၊ i18n၊ API။
 
-## Deploy
-zip ကို ဖြေ၍ repo ထဲ အကုန်ထည့်ပြီး push လုပ်ပါ။ Vercel တွင် `VOXCPM_SPACE`, `HF_TOKEN` (ရှိလျှင်) မူလအတိုင်း ဆက်သုံးနိုင်သည်။
+## ဆက်သွယ်ရန်
+Telegram: @aung_myat_minn · Gmail: amazingxstudio@google.com · Team: AmazinG
