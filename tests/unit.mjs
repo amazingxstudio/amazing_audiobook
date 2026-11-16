@@ -4,7 +4,8 @@ import { chunkParagraph, canCutBefore, splitSentences, planChapter, hashStr } fr
 import { detectEncoding, convertZawgyi } from '../public/js/zawgyi.js';
 import { splitChapters, mergeWithNext, splitChapterAt, deleteChapter, isHeading } from '../public/js/splitter.js';
 import { cleanPages } from '../public/js/cleanup.js';
-import { mergeWav, parseWav } from '../public/js/audio.js';
+import { mergeWav, mergeWavParts, parseWav } from '../public/js/audio.js';
+import { mergeAudioFiles } from '../public/js/merger.js';
 import { withRetry, SequentialQueue } from '../public/js/queue.js';
 import { CancelError } from '../public/js/errors.js';
 
@@ -58,6 +59,9 @@ await ok('planChapter: keys depend on text, voice control and cfg', () => {
   assert.deepEqual(a.map((x) => x.pauseAfter), ['para', 'para']);
   const b = planChapter(book, ch, { chunkSize: 250, cfg: 2.5 });
   assert.notEqual(a[0].key, b[0].key);
+  const c = planChapter({ ...book, voices: [{ id: 'narrator', control: '', refId: 'r1' }, book.voices[1]] }, ch, { chunkSize: 250, cfg: 2 });
+  assert.notEqual(a[0].key, c[0].key, 'a new voice (refId) must not reuse old audio');
+  assert.equal(c[1].key, a[1].key, 'other voices keep their audio');
   assert.equal(planChapter(book, ch, { chunkSize: 250, cfg: 2 })[0].key, a[0].key);
   assert.equal(hashStr('x'), hashStr('x'));
 });
@@ -136,13 +140,21 @@ function wav(samples, rate = 24000) {
   return new Blob([b], { type: 'audio/wav' });
 }
 await ok('mergeWav: valid header, sizes include pauses, rejects mismatches', async () => {
-  const out = await mergeWav([wav(2400), wav(4800), wav(1200)], ['sentence', 'para']);
+  const { blob: out } = await mergeWav([wav(2400), wav(4800), wav(1200)], ['sentence', 'para']);
   const info = await parseWav(out);
   const pause = (ms) => Math.round(ms / 1000 * 24000) * 2;
   assert.equal(info.dataSize, (2400 + 4800 + 1200) * 2 + pause(120) + pause(450));
   assert.equal(info.sampleRate, 24000); assert.equal(out.size, 44 + info.dataSize);
   await assert.rejects(mergeWav([wav(100), wav(100, 16000)]), (e) => e.key === 'err_wav_mismatch');
   await assert.rejects(mergeWav([new Blob(['not a wav file at all, definitely not riff data......'])]), (e) => e.key === 'err_not_wav');
+});
+
+await ok('mergeAudioFiles (fast path): joins WAV files with a gap, keeps order', async () => {
+  const r = await mergeAudioFiles([{ blob: wav(2400), name: 'a' }, { blob: wav(2400), name: 'b' }, { blob: wav(2400), name: 'c' }], { gapMs: 500 });
+  const info = await parseWav(r.blob);
+  assert.equal(info.dataSize, 3 * 2400 * 2 + 2 * 12000 * 2);
+  assert.ok(Math.abs(r.seconds - (3 * 0.1 + 1.0)) < 0.01, String(r.seconds));
+  await assert.rejects(mergeAudioFiles([{ blob: wav(10), name: 'x' }]), (e) => e.key === 'err_merge_need_two');
 });
 
 // --- queue / retry ---
