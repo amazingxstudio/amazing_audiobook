@@ -1,9 +1,9 @@
-// Library: saved books with chapter count and generation progress; add (via Import) and delete.
+// Home / Library: add a book, list saved books (chapters + generation progress), open, listen, delete.
 import { h, T, clear } from '../dom.js';
 import { listBooks, deleteBook, saveBook, audioKeys } from '../store.js';
 import { planChapter } from '../chunker.js';
 import { getSettings, ls } from '../settings.js';
-import { showError, confirmDialog } from '../ui.js';
+import { slot, showIn, confirmDialog, panel, meter, run } from '../ui.js';
 import { newId } from '../splitter.js';
 import { sampleChapters } from '../sample.js';
 import { newBook } from '../book-model.js';
@@ -23,55 +23,53 @@ export async function bookProgress(book) {
 
 export async function show() {
   clear(root);
+  const addErr = slot();
   root.append(
-    h('div', { class: 'row wrap between' },
-      T('lib_title', null, 'h1', { class: 'view-title' }),
-      h('a', { class: 'btn btn-primary', href: '#/import' }, T('lib_add'))));
-  let books;
-  try { books = await listBooks(); } catch (e) { showError(e); return; }
-  if (!books.length) { root.append(emptyState()); return; }
-  const list = h('div', { class: 'stack' });
-  root.append(list);
-  for (const b of books) list.append(await card(b, list));
-}
-
-function emptyState() {
-  return h('section', { class: 'card empty' },
-    T('lib_empty_title', null, 'h2'),
-    T('lib_empty_body', null, 'p'),
-    h('blockquote', { class: 'sample', lang: 'my' }, T('sample_paragraph')),
-    h('div', { class: 'row wrap' },
-      h('a', { class: 'btn btn-primary', href: '#/import' }, T('lib_add')),
-      h('button', { class: 'btn btn-quiet', type: 'button', onclick: addSample }, T('lib_add_sample'))));
+    h('div', { class: 'view-head' }, T('lib_title', null, 'h1', { class: 'view-title' }), T('lib_sub', null, 'p', { class: 'view-sub' })),
+    panel({ titleKey: 'lib_add_title', hintKey: 'lib_add_hint', icon: '+' },
+      h('div', { class: 'row wrap' },
+        h('a', { class: 'btn btn-primary', href: '#/import' }, T('lib_add')),
+        h('button', { class: 'btn btn-quiet', type: 'button', onclick: run(addErr, addSample) }, T('lib_add_sample'))),
+      addErr));
+  const listErr = slot();
+  const holder = h('div', { class: 'stack' });
+  root.append(holder);
+  let books = [];
+  try { books = await listBooks(); } catch (e) { holder.append(panel({ titleKey: 'lib_books' }, listErr)); showIn(listErr, e); return; }
+  if (!books.length) {
+    holder.append(panel({ titleKey: 'lib_empty_title', hintKey: 'lib_empty_body', icon: '?' },
+      h('blockquote', { class: 'sample', lang: 'my' }, T('sample_paragraph'))));
+    return;
+  }
+  const items = h('div', { class: 'stack' });
+  holder.append(panel({ titleKey: 'lib_books', icon: '#' }, items));
+  for (const b of books) items.append(await card(b));
 }
 
 async function addSample() {
-  try {
-    const b = newBook(t('sample_title'), sampleChapters(newId));
-    await saveBook(b);
-    await show();
-  } catch (e) { showError(e); }
+  await saveBook(newBook(t('sample_title'), sampleChapters(newId)));
+  await show();
 }
 
-async function card(book, list) {
+async function card(book) {
   const prog = await bookProgress(book).catch(() => ({ total: 0, done: 0, pct: 0 }));
-  const pos = (() => { try { return JSON.parse(ls.get('ab.pos.' + book.id, 'null')); } catch { return null; } })();
+  let pos = null; try { pos = JSON.parse(ls.get('ab.pos.' + book.id, 'null')); } catch { /* ignore */ }
   const chIdx = pos ? book.chapters.findIndex((c) => c.id === pos.chapterId) : -1;
-  const bar = h('div', { class: 'meter', role: 'progressbar', 'aria-valuemin': '0', 'aria-valuemax': '100', 'aria-valuenow': String(prog.pct) },
-    h('span', { class: 'meter-fill', style: `width:${prog.pct}%` }));
-  return h('article', { class: 'card' },
-    h('h2', { class: 'book-title' }, book.title),
+  const err = slot();
+  return h('article', { class: 'item' },
+    h('h3', { class: 'book-title' }, book.title),
     h('div', { class: 'chips' },
       T('book_chapters', { n: book.chapters.length }, 'span', { class: 'chip' }),
       T('book_generated', { p: prog.pct }, 'span', { class: 'chip' }),
       chIdx >= 0 ? T('book_listening', { n: chIdx + 1 }, 'span', { class: 'chip' }) : null),
-    bar,
+    meter(prog.pct),
     h('div', { class: 'row wrap' },
       h('a', { class: 'btn btn-primary', href: '#/book/' + book.id }, T('book_open')),
       h('a', { class: 'btn btn-quiet', href: '#/player/' + book.id }, T('book_listen')),
       h('button', { class: 'btn btn-danger-quiet', type: 'button',
-        onclick: async () => {
+        onclick: run(err, async () => {
           if (!(await confirmDialog({ msgKey: 'book_delete_confirm', args: { title: book.title }, okKey: 'delete', danger: true }))) return;
-          try { await deleteBook(book.id); ls.del('ab.pos.' + book.id); await show(); } catch (e) { showError(e); }
-        } }, T('delete'))));
+          await deleteBook(book.id); ls.del('ab.pos.' + book.id); await show();
+        }) }, T('delete'))),
+    err);
 }

@@ -56,7 +56,7 @@ export function createChapterEditor(state, { getVoices, onChange }) {
     const toggle = h('button', { class: 'btn btn-quiet', type: 'button', 'aria-expanded': String(isOpen),
       onclick: () => { isOpen ? open.delete(ch.id) : open.add(ch.id); render(); } },
       T(isOpen ? 'hide_paras' : 'show_paras'));
-    return h('article', { class: 'card' },
+    return h('article', { class: 'item' },
       h('label', { class: 'field' }, T('chapter_title', null, 'span', { class: 'field-label' }), title),
       h('div', { class: 'chips' },
         T('ch_paras', { n: ch.paras.length }, 'span', { class: 'chip' }),
